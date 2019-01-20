@@ -85,7 +85,7 @@ function find (string, master) {
 }
 
 let dictonary_geb = new geb({
-	description: [['cat', 'a feline'], ['feline', 'member of the cat family'], ['member', 'one of the people composing a group'], ['group', 'two or more figures forming a complete unit in a composition'], ['tiger', 'a large cat'], ['figure', 'an object noticeable only as a shape or form'], ['family', 'a person with a common ancestor'], ['people', 'human beings making up a group or assembly or linked by a common interest'], ['human', 'a person'], ['ancestor', 'one from whom a person is descended and who is usually more remote in the line of descent than a grandparent'], ['grandparent', 'a parent of a parent'], ['parent', 'a person who brings up and cares for another'], ['person', 'sometimes used in combination especially by those who prefer to avoid a man in compounds applicable to both sexes']],
+	description: [['cat', 'a feline'], ['feline', 'a member of the cat family'], ['member', 'one of the thing composing a group'], ['group', 'two or more figures forming a complete unit in a composition'], ['tiger', 'a large cat'], ['figure', 'an object noticeable only as a shape or form'], ['family', 'a person with a common ancestor'], ['people', 'human beings making up a group or assembly or linked by a common interest'], ['human', 'a person'], ['ancestor', 'one from whom a person is descended and who is usually more remote in the line of descent than a grandparent'], ['grandparent', 'a parent of a parent'], ['parent', 'a person who brings up and cares for another'], ['person', 'sometimes used in combination especially by those who prefer to avoid a man in compounds applicable to both sexes']],
 	functions: {
 		teach,
 		find

@@ -1,6 +1,6 @@
 let { dictonary_geb } = require('./geb.js');
 
-let sense = 'people';
+let sense = 'cat';
 let thought = dictonary_geb.description[sense];
 
 let word_path = get_best_path(thought, [thought], []);
@@ -26,36 +26,48 @@ console.log(sentence_string)
 
 function get_best_path (thought, parents, path) {
 	let the_best_path = best_path(thought, parents);
-	if (the_best_path = 0) {
-		return thought.value;
+	
+	if (the_best_path == 0) {
+		return [thought.value];
 	}
 	for (let i = 0; i < thought.description.length; i++) {
-		if (best_path(thought.description[i], [parents, thought.description[i]]) == the_best_path) {
-			return [thought.description[i].value, get_best_path(thought.description[i], parents + thought.description[i])]
+		parents.push(thought.description[i])
+		if (best_path(thought.description[i], parents) == the_best_path) {
+			return [thought.description[i].value, get_best_path(thought.description[i], parents, path)]
 		}
+		parents.pop();
 	}
 }
 
 function best_path (though, parents) {
-	let not_in_parents = true;
-	for (let i = 0; i < parents.length; i++) {
+
+	let in_parents = false;
+	for (let i = 1; i < parents.length; i++) {
 		if (thought.value == parents[i].value) {
-			not_in_parents = false;
+			in_parents = true;
 		}
 	}
 
-	if (!not_in_parents) {
+	if (in_parents) {
 		return thought.description.length
 	}
 
 	let number_count = {};
 	let max_count = 0;
-	for (let i = 0; i < though.context; i++) {
-		parents.push(though);
-		number_count[though.context[i].value] = number_of_relating_context(though.context[i].context, parents[0].context) + though.context[i].description.length + best_path(though.context[i], parents)
-		if (number_count[though.context[i].value] > max_count) {
-			max_count = number_count[though.context[i].value];
+	for (let i = 0; i < thought.description.length; i++) {
+		parents.push(though.description[i]);
+
+		if (though.description[i] && number_of_relating_context(though.description[i].context, parents[0].context) != 0){
+			if(number_count[though.description[i].value]) {
+				number_count[though.description[i].value] += number_of_relating_context(though.description[i].context, parents[0].context) /*+ though.context[i].description.length*/ + best_path(though.description[i], parents);
+			} else {
+				number_count[though.description[i].value] = 1;
+			}
+			if (number_count[though.description[i].value] > max_count) {
+				max_count = number_count[though.description[i].value];
+			}
 		}
+		parents.pop();
 	}
 
 	return max_count;
