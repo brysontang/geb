@@ -1,6 +1,6 @@
 let { dictonary_geb } = require('./geb.js');
 
-let sense = 'cat';
+let sense = 'feline';
 let thought = dictonary_geb.description[sense];
 
 let word_path = get_best_path(thought, [thought], []);
