@@ -1,0 +1,14 @@
+{
+  "name": "geb",
+  "version": "2.0.0",
+  "description": "Semantic knowledge graph with LLM-powered latent space exploration",
+  "main": "geb.js",
+  "scripts": {
+    "start": "node world3.js",
+    "explore": "node llm-world.js",
+    "viz": "node llm-viz-server.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.0"
+  }
+}

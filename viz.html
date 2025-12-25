@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Latent Space Explorer</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    #container {
+      display: flex;
+      height: 100vh;
+    }
+
+    #sidebar {
+      width: 320px;
+      background: #12121a;
+      border-right: 1px solid #2a2a3a;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    h1 {
+      font-size: 1.2em;
+      color: #8b5cf6;
+      font-weight: 500;
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      font-size: 0.75em;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    label {
+      font-size: 0.75em;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    input[type="text"], input[type="number"] {
+      background: #1a1a24;
+      border: 1px solid #2a2a3a;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 1em;
+      width: 100%;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #8b5cf6;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .row > div {
+      flex: 1;
+    }
+
+    button {
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      border: none;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    }
+
+    button:disabled {
+      background: #333;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    #status {
+      font-size: 0.85em;
+      color: #10b981;
+      min-height: 24px;
+    }
+
+    #status.error {
+      color: #ef4444;
+    }
+
+    #stats {
+      font-size: 0.8em;
+      color: #666;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat {
+      background: #1a1a24;
+      padding: 10px;
+      border-radius: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.4em;
+      color: #8b5cf6;
+      font-weight: 600;
+    }
+
+    .stat-label {
+      font-size: 0.7em;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    #definition-panel {
+      flex: 1;
+      background: #1a1a24;
+      border-radius: 6px;
+      padding: 14px;
+      overflow-y: auto;
+      font-size: 0.85em;
+    }
+
+    .def-word {
+      color: #8b5cf6;
+      font-size: 1.1em;
+      margin-bottom: 8px;
+    }
+
+    .def-text {
+      color: #aaa;
+      line-height: 1.5;
+    }
+
+    .def-depth {
+      color: #666;
+      font-size: 0.8em;
+      margin-top: 8px;
+    }
+
+    #graph {
+      flex: 1;
+      background: #0a0a0f;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .link {
+      stroke: #2a2a3a;
+      stroke-opacity: 0.6;
+    }
+
+    .link.active {
+      stroke: #8b5cf6;
+      stroke-opacity: 1;
+    }
+
+    .node circle {
+      stroke: #1a1a24;
+      stroke-width: 2px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .node:hover circle {
+      stroke: #8b5cf6;
+      stroke-width: 3px;
+    }
+
+    .node.defining circle {
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { stroke: #8b5cf6; stroke-width: 2px; }
+      50% { stroke: #c4b5fd; stroke-width: 4px; }
+    }
+
+    .node text {
+      font-size: 11px;
+      fill: #ccc;
+      pointer-events: none;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .node.depth-0 circle { fill: #8b5cf6; }
+    .node.depth-1 circle { fill: #6366f1; }
+    .node.depth-2 circle { fill: #3b82f6; }
+    .node.depth-3 circle { fill: #0ea5e9; }
+    .node.depth-4 circle { fill: #14b8a6; }
+    .node.depth-5 circle { fill: #10b981; }
+
+    .tooltip {
+      position: absolute;
+      background: #1a1a24;
+      border: 1px solid #2a2a3a;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.8em;
+      max-width: 300px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 1000;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="sidebar">
+      <div>
+        <h1>LATENT SPACE EXPLORER</h1>
+        <div class="subtitle">Excavate the LLM's semantic web</div>
+      </div>
+
+      <div class="controls">
+        <div>
+          <label>Seed Word</label>
+          <input type="text" id="seed" value="consciousness" placeholder="Enter a word...">
+        </div>
+        <div class="row">
+          <div>
+            <label>Max Depth</label>
+            <input type="number" id="maxDepth" value="4" min="1" max="8">
+          </div>
+          <div>
+            <label>Max Words</label>
+            <input type="number" id="maxWords" value="50" min="5" max="200">
+          </div>
+        </div>
+        <button id="explore">Explore Latent Space</button>
+      </div>
+
+      <div id="status">Ready</div>
+
+      <div id="stats">
+        <div class="stat">
+          <div class="stat-value" id="nodeCount">0</div>
+          <div class="stat-label">Nodes</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="edgeCount">0</div>
+          <div class="stat-label">Edges</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="depthCount">0</div>
+          <div class="stat-label">Depth</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="apiCalls">0</div>
+          <div class="stat-label">API Calls</div>
+        </div>
+      </div>
+
+      <div id="definition-panel">
+        <div style="color: #666;">Click a node to see its definition</div>
+      </div>
+    </div>
+
+    <div id="graph"></div>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    // Graph state
+    const nodes = [];
+    const links = [];
+    const nodeMap = new Map();
+    let simulation;
+    let svg, g, linkGroup, nodeGroup;
+    let ws;
+    let apiCallCount = 0;
+
+    // Initialize the visualization
+    function initGraph() {
+      const container = document.getElementById('graph');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      svg = d3.select('#graph')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      // Add zoom behavior
+      const zoom = d3.zoom()
+        .scaleExtent([0.1, 4])
+        .on('zoom', (event) => {
+          g.attr('transform', event.transform);
+        });
+
+      svg.call(zoom);
+
+      g = svg.append('g');
+
+      linkGroup = g.append('g').attr('class', 'links');
+      nodeGroup = g.append('g').attr('class', 'nodes');
+
+      simulation = d3.forceSimulation()
+        .force('link', d3.forceLink().id(d => d.id).distance(80))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(40));
+
+      simulation.on('tick', () => {
+        linkGroup.selectAll('.link')
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+
+        nodeGroup.selectAll('.node')
+          .attr('transform', d => `translate(${d.x},${d.y})`);
+      });
+    }
+
+    // Add a node to the graph
+    function addNode(data) {
+      if (nodeMap.has(data.id)) return;
+
+      const node = {
+        id: data.id,
+        word: data.word,
+        depth: data.depth,
+        definition: data.definition,
+        children: data.children || [],
+        x: undefined,
+        y: undefined
+      };
+
+      // Position near parent if exists
+      if (data.parent !== null && nodeMap.has(data.parent)) {
+        const parent = nodeMap.get(data.parent);
+        node.x = parent.x + (Math.random() - 0.5) * 100;
+        node.y = parent.y + (Math.random() - 0.5) * 100;
+      }
+
+      nodes.push(node);
+      nodeMap.set(data.id, node);
+
+      // Add link to parent
+      if (data.parent !== null && nodeMap.has(data.parent)) {
+        links.push({
+          source: data.parent,
+          target: data.id
+        });
+      }
+
+      updateGraph();
+      updateStats();
+    }
+
+    // Mark a node as "defining"
+    function markDefining(id) {
+      nodeGroup.selectAll('.node')
+        .classed('defining', d => d.id === id);
+    }
+
+    // Update the D3 visualization
+    function updateGraph() {
+      // Update links
+      const link = linkGroup.selectAll('.link')
+        .data(links, d => `${d.source.id || d.source}-${d.target.id || d.target}`);
+
+      link.enter()
+        .append('line')
+        .attr('class', 'link')
+        .attr('stroke-width', 1.5);
+
+      link.exit().remove();
+
+      // Update nodes
+      const node = nodeGroup.selectAll('.node')
+        .data(nodes, d => d.id);
+
+      const nodeEnter = node.enter()
+        .append('g')
+        .attr('class', d => `node depth-${Math.min(d.depth, 5)}`)
+        .call(d3.drag()
+          .on('start', dragstarted)
+          .on('drag', dragged)
+          .on('end', dragended))
+        .on('click', (event, d) => showDefinition(d))
+        .on('mouseenter', (event, d) => showTooltip(event, d))
+        .on('mouseleave', hideTooltip);
+
+      nodeEnter.append('circle')
+        .attr('r', d => Math.max(20 - d.depth * 2, 12));
+
+      nodeEnter.append('text')
+        .attr('dy', d => Math.max(20 - d.depth * 2, 12) + 14)
+        .text(d => d.word.length > 12 ? d.word.slice(0, 10) + '...' : d.word);
+
+      node.exit().remove();
+
+      // Update simulation
+      simulation.nodes(nodes);
+      simulation.force('link').links(links);
+      simulation.alpha(0.3).restart();
+    }
+
+    // Update statistics
+    function updateStats() {
+      document.getElementById('nodeCount').textContent = nodes.length;
+      document.getElementById('edgeCount').textContent = links.length;
+      document.getElementById('depthCount').textContent = Math.max(...nodes.map(n => n.depth), 0);
+      document.getElementById('apiCalls').textContent = apiCallCount;
+    }
+
+    // Show definition in sidebar
+    function showDefinition(node) {
+      const panel = document.getElementById('definition-panel');
+      if (node.definition) {
+        panel.innerHTML = `
+          <div class="def-word">${node.word}</div>
+          <div class="def-text">${node.definition}</div>
+          <div class="def-depth">Depth: ${node.depth} | Children: ${node.children.length}</div>
+        `;
+      } else {
+        panel.innerHTML = `
+          <div class="def-word">${node.word}</div>
+          <div class="def-text" style="color: #666;">No definition available</div>
+          <div class="def-depth">Depth: ${node.depth}</div>
+        `;
+      }
+    }
+
+    // Tooltip
+    function showTooltip(event, d) {
+      const tooltip = document.getElementById('tooltip');
+      tooltip.textContent = d.definition || d.word;
+      tooltip.style.left = (event.pageX + 10) + 'px';
+      tooltip.style.top = (event.pageY + 10) + 'px';
+      tooltip.classList.add('visible');
+    }
+
+    function hideTooltip() {
+      document.getElementById('tooltip').classList.remove('visible');
+    }
+
+    // Drag handlers
+    function dragstarted(event) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      event.subject.fx = event.subject.x;
+      event.subject.fy = event.subject.y;
+    }
+
+    function dragged(event) {
+      event.subject.fx = event.x;
+      event.subject.fy = event.y;
+    }
+
+    function dragended(event) {
+      if (!event.active) simulation.alphaTarget(0);
+      event.subject.fx = null;
+      event.subject.fy = null;
+    }
+
+    // Reset the graph
+    function resetGraph() {
+      nodes.length = 0;
+      links.length = 0;
+      nodeMap.clear();
+      apiCallCount = 0;
+      linkGroup.selectAll('.link').remove();
+      nodeGroup.selectAll('.node').remove();
+      updateStats();
+    }
+
+    // Connect to WebSocket and start exploration
+    function explore() {
+      const seed = document.getElementById('seed').value.trim() || 'consciousness';
+      const maxDepth = parseInt(document.getElementById('maxDepth').value) || 4;
+      const maxWords = parseInt(document.getElementById('maxWords').value) || 50;
+
+      const button = document.getElementById('explore');
+      const status = document.getElementById('status');
+
+      button.disabled = true;
+      status.textContent = 'Connecting...';
+      status.classList.remove('error');
+
+      resetGraph();
+
+      // Connect to WebSocket
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}`);
+
+      ws.onopen = () => {
+        status.textContent = `Exploring "${seed}"...`;
+        ws.send(JSON.stringify({
+          type: 'explore',
+          seed,
+          maxDepth,
+          maxWords
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        switch (data.type) {
+          case 'start':
+            status.textContent = `Mapping "${data.seed}" (${data.model})...`;
+            break;
+
+          case 'defining':
+            apiCallCount++;
+            updateStats();
+            status.textContent = `Defining: ${data.word}`;
+            addNode({
+              id: data.id,
+              word: data.word,
+              depth: data.depth,
+              parent: data.parent,
+              definition: null,
+              children: []
+            });
+            markDefining(data.id);
+            break;
+
+          case 'node':
+            // Update existing node with definition
+            const node = nodeMap.get(data.id);
+            if (node) {
+              node.definition = data.definition;
+              node.children = data.children || [];
+            }
+            markDefining(-1); // Clear defining state
+            break;
+
+          case 'complete':
+            status.textContent = `Complete: ${data.totalWords} concepts mapped`;
+            button.disabled = false;
+            break;
+
+          case 'error':
+            status.textContent = `Error: ${data.message}`;
+            status.classList.add('error');
+            button.disabled = false;
+            break;
+        }
+      };
+
+      ws.onerror = () => {
+        status.textContent = 'Connection error - is the server running?';
+        status.classList.add('error');
+        button.disabled = false;
+      };
+
+      ws.onclose = () => {
+        if (status.textContent.includes('Exploring') || status.textContent.includes('Defining')) {
+          status.textContent = 'Connection closed';
+        }
+        button.disabled = false;
+      };
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initGraph();
+
+      document.getElementById('explore').addEventListener('click', explore);
+
+      // Enter key to start
+      document.getElementById('seed').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') explore();
+      });
+
+      // Handle resize
+      window.addEventListener('resize', () => {
+        const container = document.getElementById('graph');
+        svg.attr('width', container.clientWidth).attr('height', container.clientHeight);
+        simulation.force('center', d3.forceCenter(container.clientWidth / 2, container.clientHeight / 2));
+        simulation.alpha(0.3).restart();
+      });
+    });
+  </script>
+</body>
+</html>
